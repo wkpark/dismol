@@ -1,4 +1,4 @@
-/* *
+/**
  * atom.java - definition of an atom, elements are subclasses of atom
  * Copyright (c) 1997 Will Ware, all rights reserved.
  * 

@@ -69,8 +69,8 @@ public class PDBAtom extends atom
   private String aname = "?";
   private String asymbol = "?";
   public PDBAtom CurAtom = null;
-  public static double atomsize_parm = 400;
-  public static double bondsize_parm = 100;
+  //public static double atomsize_parm = 400;
+  //public static double bondsize_parm = 100;
 
   public PDBAtom()
   {
@@ -100,9 +100,12 @@ public class PDBAtom extends atom
   public String symbol (){ return asymbol; }
   public int atomicNumber (){ return elemno; }
   public double mass (){ return 12; }
-  public double covalentRadius () { return radius/1000; }
+  public double covalentRadius () {
+    return radius/500;
+  }
   public double vdwEnergy (){ return 0.357; }
-  public double vdwRadius (){ return irad/100.0; }
+  //public double vdwRadius (){ return irad/100.0; }
+  public double vdwRadius (){ return irad/200.0; }
   public int maxNumBonds (){ return 4; }
     static int cnt = 0;
   public final void setParms(){ setParms(elemno); }
@@ -112,13 +115,29 @@ public class PDBAtom extends atom
     elemno = enumber;
     Element e = Element.getElement(enumber);
     irad = e.vdwrad;
-    radius = atomsize_parm*vdwRadius();
+    //radius = atomsize_parm*vdwRadius();
+    radius = vdwRadius();
     aname = e.name;
     asymbol = e.symbol;
 
     if(cnt++ < 0)
       System.err.println(aname + " radii " + vdwRadius());
   }
+
+  public void rehybridize ()  // based on number of bonds
+  {
+    if (elemno == 6 || elemno == 7 || elemno == 8) { 
+    switch (sigmaBonds ())
+      {
+      default:
+      case 4: hybridization = SP3; break;
+      case 3: hybridization = SP2; break;
+      case 2: hybridization = SP;  break;
+      }
+    } else
+      hybridization= NONE;
+  }
+
 
   public int GetElemNumber( int group_refno, String ptr)
   {

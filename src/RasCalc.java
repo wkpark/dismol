@@ -106,13 +106,14 @@ class RasCalc
     cz = atm4.x[2]- atm3.x[2];
     if (0==cx && 0==cy && 0==cz)
       return 0.0;
-    
+/*    
 //#ifdef INVERT
     ay = -ay;
     by = -by;
     cy = -cy;
     
-//#endif	/*  */
+//#endif
+*/
     az = -az;
     bz = -bz;
     cz = -cz;

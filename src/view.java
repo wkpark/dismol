@@ -31,11 +31,13 @@ public class view
   public static final String rcsid =
   "$Id: view.java,v 1.5 1998/05/20 17:30:51 pcm Exp $";
   // rotation matrix
-  private double[] m = { 1, 0, 0, 0, 1, 0, 0, 0, 1 };
+  public double[] m = { 1, 0, 0, 0, 1, 0, 0, 0, 1 };
   private double[] r = { 1, 0, 0, 0, 1, 0, 0, 0, 1 };
   private double[] Ir = { 1, 0, 0, 0, 1, 0, 0, 0, 1 };
   public double zoomFactor = 25.0; // pixels per angstrom
   public double perspDist = 1000.0; // z distance for perspective, in pixels
+  public double atomsize_parm = 400.0;
+  public double bondsize_parm = 100.0;
 
 //  public double origCX=0, origCY=0, origCZ=0; // from rasmol
 //  public double worldRadius, worldSize;
@@ -54,6 +56,10 @@ public class view
   private boolean panned = false;
   private int renorm_counter = 0;
 
+  private static double Rad2Deg = 180.0/3.14159265358979;
+  private static double Deg2Rad = 3.14159265358979/180.0;
+  private static double PI=3.14159265358979;
+
   public void updateSize (int x, int y)
   {
     if(!panned)
@@ -62,6 +68,13 @@ public class view
       yCenter = yCenterDefault + y / 2;
     }
   }
+
+  public void reset ()
+  {
+    double[] im = { 1, 0, 0, 0, 1, 0, 0, 0, 1 };
+    m = im;
+  }
+
   public void pan (int dx, int dy)
   {
     xCenter += dx;
@@ -131,7 +144,68 @@ public class view
     m[j] /= r;
     m[k] /= r;
   }
-  public void rotate (double xAngle, double yAngle)//, double zAngle)
+
+  public void rotate (int xAngle, int yAngle, int zAngle)
+  {
+    rotatex(xAngle*Deg2Rad);
+    rotatey(yAngle*Deg2Rad);
+    rotatez(zAngle*Deg2Rad);
+  }
+
+  public void rotatey (double angle)
+  {
+    double sa, ca, m0, m1, m2, m3, m4, m5;
+    sa = Math.sin (angle);
+    ca = Math.cos (angle);
+
+    m0 = ca * m[0] + sa * m[6];
+    m1 = ca * m[1] + sa * m[7];
+    m2 = ca * m[2] + sa * m[8];
+    m[6] = -sa * m[0] + ca * m[6];
+    m[7] = -sa * m[1] + ca * m[7];
+    m[8] = -sa * m[2] + ca * m[8];
+    m[0] = m0;
+    m[1] = m1;
+    m[2] = m2;
+  }
+
+
+  public void rotatex (double angle)
+  {
+    double sa, ca, m0, m1, m2, m3, m4, m5;
+    sa = Math.sin (angle);
+    ca = Math.cos (angle);
+
+    m3 = ca * m[3] + sa * m[6];
+    m4 = ca * m[4] + sa * m[7];
+    m5 = ca * m[5] + sa * m[8];
+    m[6] = -sa * m[3] + ca * m[6];
+    m[7] = -sa * m[4] + ca * m[7];
+    m[8] = -sa * m[5] + ca * m[8];
+    m[3] = m3;
+    m[4] = m4;
+    m[5] = m5;
+  }
+
+
+  public void rotatez (double angle)
+  {
+    double sa, ca, m0, m1, m2, m3, m4, m5;
+    sa = Math.sin (angle);
+    ca = Math.cos (angle);
+
+    m3 = ca * m[3] + sa * m[0];
+    m4 = ca * m[4] + sa * m[1];
+    m5 = ca * m[5] + sa * m[2];
+    m[0] = -sa * m[3] + ca * m[0];
+    m[1] = -sa * m[4] + ca * m[1];
+    m[2] = -sa * m[5] + ca * m[2];
+    m[3] = m3;
+    m[4] = m4;
+    m[5] = m5;
+  }
+
+  public void rotate (double xAngle, double yAngle)
   {
     double sa, ca, m0, m1, m2, m3, m4, m5;
     sa = Math.sin (xAngle);
@@ -146,7 +220,6 @@ public class view
     m[0] = m0;
     m[1] = m1;
     m[2] = m2;
-
 
     sa = Math.sin (yAngle);
     ca = Math.cos (yAngle);
@@ -265,4 +338,65 @@ public class view
        (m[0] * m[4] - m[1] * m[3]) * z) * denom;
     return rvec;
   }
+
+  public double[] getRotateInfo()
+  {
+
+  double RX=0, RY=0, RZ=0;
+  double SRX, SRY, SRZ, TRX, TRY, TRZ;
+  double NSum;
+  double TSum;
+  double[] rot = new double[3];
+
+  if (m[6] < 1. ) {
+    if (m[6] > -1.) {
+      SRY = Math.asin(-m[6])/PI;
+    } else {
+      SRY = .5;
+    }
+  } else {
+    SRY = -.5;
+  }
+  TRY = 1.-SRY;
+  if ( TRY > 2. ) TRY -= 2.;
+  TRZ = 1.;
+  if (m[6] > .9999995) {
+    SRX = Math.atan2(-m[1],m[4])/PI;
+    TRX = SRX;
+    SRZ = 0;
+  } else {
+    if (m[6] < -.9999995 ) {
+    SRX = Math.atan2(m[1],m[4])/PI;
+    TRX = SRX;
+    SRZ = 0;
+    } else {
+      SRX = Math.atan2(-m[7],m[8])/PI;
+      TRX = 1.+SRX;
+      if ( TRX > 2. ) TRX -= 2.;
+      SRZ = Math.atan2(m[3],m[0])/PI;
+      TRZ = 1.+SRZ;
+      if ( TRZ > 2. ) TRZ -= 2.;
+    }
+  }
+
+  NSum = 0;
+  TSum = 0;
+  NSum += Math.abs(Math.cos(SRX*PI)-Math.cos((RX)*PI)) + Math.abs(Math.sin(SRX*PI)-Math.sin((RX)*PI))
+    + Math.abs(Math.cos(SRY*PI)-Math.cos((RY)*PI)) + Math.abs(Math.sin(SRY*PI)-Math.sin((RY)*PI))
+    + Math.abs(Math.cos(SRZ*PI)-Math.cos((RZ)*PI)) + Math.abs(Math.sin(SRZ*PI)-Math.sin((RZ)*PI));
+  TSum += Math.abs(Math.cos(TRX*PI)-Math.cos((RX)*PI)) + Math.abs(Math.sin(TRX*PI)-Math.sin((RX)*PI))
+    + Math.abs(Math.cos(TRY*PI)-Math.cos((RY)*PI)) + Math.abs(Math.sin(TRY*PI)-Math.sin((RY)*PI))
+    + Math.abs(Math.cos(TRZ*PI)-Math.cos((RZ)*PI)) + Math.abs(Math.sin(TRZ*PI)-Math.sin((RZ)*PI));
+
+  if (NSum < TSum) {
+    RX = SRX; RY = SRY; RZ = SRZ;
+  } else {
+    RX = TRX; RY = TRY; RZ = TRZ;
+  }
+  //System.out.println(RX + "," + RY + "," + RZ);
+  rot[0]=RX; rot[1]=RY; rot[2]=RZ;
+  return rot;
+}
+      
+      
 }

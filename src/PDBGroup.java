@@ -1,4 +1,3 @@
-
 /**
  * pdbgroup.java
  * Copyright (c) 1998 Peter McCluskey, all rights reserved.

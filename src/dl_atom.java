@@ -1,5 +1,6 @@
 /**
- * dlentry.java - entry in a drawing list
+ * dl_atom.java - entry in a drawing list, for drawing an atom
+ * Copyright (c) 1998 Peter McCluskey, all rights reserved.
  * Copyright (c) 1997 Will Ware, all rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -35,6 +36,8 @@ public class dl_atom extends dlentry
   private static double rvec[] = new double[3];
   private atom atm1;
   static int cnt = 0;
+  private double radius = 0.3;
+  private view vw;
   public dl_atom (atom a, view v)
   {
     atm1 = a;
@@ -43,7 +46,7 @@ public class dl_atom extends dlentry
     x = rvec[0];
     y = rvec[1];
     z = rvec[2];
-    r1 = radiusRatio * a.covalentRadius () * v.zoomFactor;
+    r1 = radiusRatio * a.covalentRadius () * v.atomsize_parm * v.zoomFactor;
     r1 *= v.perspectiveFactor (rvec);
   }
   public double zvalue ()
@@ -58,7 +61,7 @@ public class dl_atom extends dlentry
   {
     return y + r1;
   }
-	// square of distance from displayed edge of atom, negative if inside atom
+  // square of distance from displayed edge of atom, negative if inside atom
   public double pixelSquaredDistance(double[] scrPos)
   {
     double dx = x - scrPos[0];
@@ -67,13 +70,39 @@ public class dl_atom extends dlentry
   }
   public void quickpaint (Graphics g)
   {
-	g.drawOval ((int)x, (int)y, (int)(2 * r1), (int)(2 * r1));
+    /*g.drawOval ((int)x, (int)y, (int)(2 * r1), (int)(2 * r1)); */
+    atom a=atm1;
+    int col = ((PDBAtom)atm1).getColorIndex();
+    double sx[] = {a.x[0]+radius,a.x[1],a.x[2]};
+    double sy[] = {a.x[0],a.x[1]+radius,a.x[2]};
+    double sz[] = {a.x[0],a.x[1],a.x[2]+radius};
+
+    sx = vw.xyzToScreen (sx);
+    sy = vw.xyzToScreen (sy);
+    sz = vw.xyzToScreen (sz);
+
+    double ex[] = {a.x[0]-radius,a.x[1],a.x[2]};
+    double ey[] = {a.x[0],a.x[1]-radius,a.x[2]};
+    double ez[] = {a.x[0],a.x[1],a.x[2]-radius};
+
+    ex = vw.xyzToScreen (ex);
+    ey = vw.xyzToScreen (ey);
+    ez = vw.xyzToScreen (ez);
+
+    RasBuffer.ClipTwinLine((int)(ex[0]),(int)(ex[1]),(int)(ex[2]),
+       (int)(sx[0]),(int)(sx[1]),(int)(sx[2]),col,col);
+    RasBuffer.ClipTwinLine((int)(ey[0]),(int)(ey[1]),(int)(ey[2]),
+       (int)(sy[0]),(int)(sy[1]),(int)(sy[2]),col,col);
+    RasBuffer.ClipTwinLine((int)(ez[0]),(int)(ez[1]),(int)(ez[2]),
+       (int)(sz[0]),(int)(sz[1]),(int)(sz[2]),col,col);
+
   }
 
   public void paint (Graphics g)
   {
     int iradius = (int)r1;
     int c = ((PDBAtom)atm1).getColorIndex();
+
     RasBuffer.DrawSphere((int)x, (int)y, (int)z, iradius, c);
   }
 }

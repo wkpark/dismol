@@ -1,3 +1,22 @@
+* 2004/09/26
+ * add setClipboard()
+* 2004/09/22
+ * add cleanMolecule()
+* 2004/09/17
+ * fix DrawCyliner()'s intensity
+* 2004/09/11
+ * import RasTop DrawCyliner() routine
+* 2004/09/10 wkpark@gmail.com
+ * animation (movie), prev/next keys (m for movie, b:prev,n:next)
+ * enable NanoCAD's minimization and can show forces (e:energy minimize)
+ * read xmol like frequencies format and can show frequency vectors
+* 2004/09/09 wkpark@gmail.com
+ * can select atom name and add atom with it
+ * add new keys: i:initial viewing, c:centerize atoms
+ * show more digits for pick info: f:increase floating point precision
+* 2004/09/05 wkpark@gmail.com
+ * read multiple xyz format like the Chime
+
 ==== 9/9/2003 ====
 wkpark@gmail.com
  * can delete or add atom

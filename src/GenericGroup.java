@@ -120,6 +120,7 @@ public class GenericGroup extends group
     double maxy = -1.e9;
     double minz = 1.e9;
     double maxz = -1.e9;
+    int maxdim = 550;
     for(i = 0; i < atomList.size(); ++i)
     {
         PDBAtom ptr = (PDBAtom)atomList.elementAt(i);
@@ -133,7 +134,6 @@ public class GenericGroup extends group
     double z = Math.max(maxx-minx+2,maxy-miny+2);
     if(z > 0)
     {
-      int maxdim = 550;
       if(mypanel_size != null)
       {
 	int m = Math.min(mypanel_size.width, mypanel_size.height);
@@ -146,7 +146,8 @@ public class GenericGroup extends group
     v.setDefaultCenter(-(minx + maxx)/2, -(miny + maxy)/2);
     if(false) System.err.println("zfactor " + z + " => " + v.zoomFactor
 				+ " min " + minx + "," + miny
-				+ " max " + maxx + "," + maxy);
+				+ " max " + maxx + "," + maxy
+				+ " maxdim " + maxdim);
   }
 
   public void setColors()
@@ -233,6 +234,32 @@ public class GenericGroup extends group
 	{
 	  if(i == 0) continue;
 	  else break;
+	}
+	buf.append(ch);
+	++i;
+      }while(i < 200);
+    } catch (IOException e) {
+      System.err.println("IOException " + e.getMessage());
+      return buf.toString();	/* ?? */
+    }
+    return buf.toString();
+  }
+
+  protected static String FetchRecord(InputStream fp,int mode)
+  {
+    StringBuffer buf = new StringBuffer();
+    int i = 0;
+    try
+    {
+      do
+      {
+	char ch;
+	int c = fp.read();
+	if(c == -1) break;
+	ch = (char)c;
+	if(ch == '\n' || ch == '\r')
+	{
+	  break;
 	}
 	buf.append(ch);
 	++i;

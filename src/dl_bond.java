@@ -1,5 +1,5 @@
 /**
- * dlentry.java - entry in a drawing list
+ * dl_bond.java - entry in a drawing list
  * Copyright (c) 1997 Will Ware, all rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -64,17 +64,18 @@ public class dl_bond extends dlentry
     y1 = rvec[1];
     z1 = rvec[2];
     if (mode == 0)
-    r1 = radiusRatio * a1.covalentRadius () * v.zoomFactor;
+    r1 = radiusRatio * a1.covalentRadius () * v.atomsize_parm * v.zoomFactor;
     else 
     r1 = radiusRatio * radius * v.zoomFactor;
     r1 *= v.perspectiveFactor (rvec);
+    r1 = Math.max(r1,1);
 
     v.xyzToScreen (a2.x, rvec);
     x2 = rvec[0];
     y2 = rvec[1];
     z2 = rvec[2];
     if (mode == 0)
-    r2 = radiusRatio * a2.covalentRadius () * v.zoomFactor;
+    r2 = radiusRatio * a2.covalentRadius () * v.atomsize_parm * v.zoomFactor;
     else
     r2 = radiusRatio * radius * v.zoomFactor;
     r2 *= v.perspectiveFactor (rvec);

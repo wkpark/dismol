@@ -1,4 +1,3 @@
-
 /**
  * Bond.java
  * Copyright (c) 1998 Peter McCluskey, all rights reserved.
@@ -46,10 +45,10 @@ public class Bond
 
   private atom srcatom;             /* Source Atom Ptr       */
   private atom dstatom;             /* Destination Atom Ptr  */
-  private short radius;                    /* World Radius          */
-  private short irad;                      /* Image Radius          */
-  private short col;                       /* Bond Colour           */
-  private int  flag;                      /* Database flags        */
+  private short radius;             /* World Radius          */
+  private short irad;               /* Image Radius          */
+  private short col;                /* Bond Colour           */
+  private int  flag;                /* Database flags        */
 
   public final atom sourceAtom() { return srcatom; }
   public final atom destAtom() { return dstatom; }

@@ -1,6 +1,5 @@
-
 /**
- * pdbgroup.java
+ * xyzgroup.java
  * Copyright (c) 1998 Peter McCluskey, all rights reserved.
  * based in part on the code from 
  * RasMol2 Molecular Graphics by Roger Sayle, August 1995, Version 2.6
@@ -40,6 +39,13 @@ public class XYZGroup extends GenericGroup
   public int SimpleAtomType(String type)
   {
     StringBuffer name = new StringBuffer();
+
+    try {
+      type=Element.getElement(Integer.parseInt(type)).symbol;
+      //String str;
+      //type=str;
+    } catch (NumberFormatException e) { }
+//      // System.err.println("SimpleAtom: " +str);
 
     if( type.length() > 1 && (type.charAt(1) != ' ') )
     {

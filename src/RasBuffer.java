@@ -91,6 +91,7 @@ class ArcEntry extends Object
 {
   static final int ARCSIZE = 2048;
   short dx,dy,dz;
+  double x;
   short inten;
   int offset;
 
@@ -99,6 +100,18 @@ class ArcEntry extends Object
     dx = dy = dz = 0;
     inten = 0;
     offset = 0;
+    x=0;
+  }
+}
+
+class ArcTableEntry extends Object
+{
+  static final int ARCSIZE = 2048;
+  double x;
+
+  ArcTableEntry()
+  {
+    x=0;
   }
 }
 
@@ -153,7 +166,7 @@ public class RasBuffer
   private static final int DefaultColDepth = (EIGHTBIT ? 16 : 32);
   private static int ColourDepth = DefaultColDepth;
   private static int ColourMask = ColourDepth-1;
-  private static final int LutSize = (EIGHTBIT ? 256 : 1024);
+  private static final int LutSize = (EIGHTBIT ? 256 : 1024); // 32 * 32
   private static int Lut[] = new int[LutSize];
   private static ColorModel colorModel;
   private static boolean ULut[] = new boolean[LutSize];
@@ -167,7 +180,7 @@ public class RasBuffer
   private static int BackR,BackG,BackB;
   private static int LabR,LabG,LabB;
   private static int BoxR,BoxG,BoxB;
-  private static boolean UseBackFade = true;
+  private static boolean UseBackFade = false;
   private static boolean FakeSpecular = true;
   private static int SpecPower = 8;
 
@@ -177,6 +190,9 @@ public class RasBuffer
   static int ArcAcPtr = 0;
   static ArcEntry ArcDn[] = new ArcEntry[ArcEntry.ARCSIZE];
   static int ArcDnPtr = 0;
+  static ArcTableEntry ArcTable[] = new ArcTableEntry[ArcTableEntry.ARCSIZE];
+  static int ArcTablePtr = 0;
+  static int CurrentRad = 0;
 
   private static MemoryImageSource RasmolImg=null;
   private static boolean RedrawFlag=true;
@@ -194,6 +210,7 @@ public class RasBuffer
   private static int ColConst[] = new int[MAXRAD];
 
   private static final int MAXSHADE = 32;
+  //private static final int MAXSHADE = 64;
   /*  private static ShadeRef ScaleRef[] = new ShadeRef[MAXSHADE]; */
   private static RefCountColor Shade[] = null;
   /*
@@ -356,6 +373,16 @@ public class RasBuffer
      new ShadeRef(0, 0, 160,  32, 240 ),    /* 6  Purple -25 < V < -10 */
      new ShadeRef(0, 0, 255, 255, 255 ) };  /* 7  White        V < -25 */
 
+  public static int CPKColor(int cpkcol)
+  {
+    ShadeRef ref = CPKShade[cpkcol];
+
+    if(ref.col == 0)
+    {   ref.shade = DefineShade(ref.color.getRed(),ref.color.getGreen(),ref.color.getBlue() );
+	ref.col = Shade2Colour(ref.shade);
+    }
+    return ref.col;
+  }
   public static void CPKColourAttrib(Vector atomList)
   {
     int i;
@@ -364,6 +391,13 @@ public class RasBuffer
 	CPKShade[i].col = 0;
     if(Shade == null) InitialiseTransform();
     else ResetColourAttrib(atomList);
+
+    {
+	ShadeRef ref = CPKShade[13]; /* Green */
+	ref.shade = DefineShade(ref.color.getRed(),ref.color.getGreen(),ref.color.getBlue() );
+	ref.col = Shade2Colour(ref.shade);
+        Shade[ref.shade].refcount++;
+    }
 
     for(i = 0; i < atomList.size(); ++i)
     {
@@ -446,7 +480,7 @@ public class RasBuffer
     FakeSpecular = false;
     Ambient = DefaultAmbient;
     */
-    UseBackFade = true;
+    UseBackFade = false;
     FakeSpecular = true;
 
     BackR = BackG = BackB = 0;
@@ -457,6 +491,13 @@ public class RasBuffer
     /*
     ScaleCount = 0;
     */
+  }
+
+  public static void setBackColor(Color col)
+  {
+    BackR = col.getRed();
+    BackG = col.getGreen();
+    BackB = col.getBlue();
   }
 
   private static void ResetColourAttrib(Vector atomList)
@@ -654,6 +695,7 @@ public class RasBuffer
     int   stdcol = Lut[col];
     int   cc = ColConst[rad];
     int   r = 0;
+    if (wide == 0) return; /* */
     while(wide == 1 && (long)(512+wide-dy)*(long)cc > (long)Integer.MAX_VALUE)
     { // prevent overflow in low radius inten calc.
       cc = ColConst[rad + ++r];
@@ -748,6 +790,7 @@ public class RasBuffer
       dy++;
     }
 
+ 
     if(y + dy < view.ymax)
     do { 
       if(y + dy >= 0)
@@ -834,7 +877,7 @@ public class RasBuffer
     }
   }
 
-  private static void DrawCylinderCaps(int x1,int y1,int z1,
+  private static void DrawCylinderCapsX(int x1,int y1,int z1,
 				       int x2,int y2,int z2,
 				       int c1,int c2,int rad)
   {
@@ -875,6 +918,7 @@ public class RasBuffer
 	  if( inten>0 )
           {
 	    inten = (int)((inten*ColConst[rad])>>ColBits);
+	    if( inten>ColourMask ) inten = ColourMask;
 	  }else inten = 0;
 	  offset = temp+dx;
 
@@ -884,21 +928,21 @@ public class RasBuffer
 	    if(depth > view.dbuf[dold + offset])
 	    {
 	      view.dbuf[dold + offset] = depth;
-	      view.fbuf[fold + offset] = Lut[inten+c1];
+	      view.fbuf[fold+offset] = Lut[c1+inten];
 	    }
 	  }
 
 	  if((x2+dx) >= 0 && (x2+dx) < view.xmax && (y2+dy) >= 0 && (y2+dy) < view.ymax)
           {
 	    short depth = (short)(dz+z2);
-	    if(depth > view.dbuf[dold + offset + end])
-	    {
-	      view.dbuf[dold + offset + end] = depth;
-	      view.fbuf[fold + offset + end] = Lut[inten+c2];
-	    }
+            if( depth > view.dbuf[dold+(offset+end)]) 
+            {   view.dbuf[dold+(offset+end)] = (short)(depth);
+	       view.fbuf[fold+(offset+end)] = Lut[c2+inten];
+            }
 	  }
 
 		// an out of bounds exception here means an excessive radius
+
 	  ArcAc[ArcAcPtr].offset = offset;
 	  ArcAc[ArcAcPtr].inten = (short)inten;
 	  ArcAc[ArcAcPtr].dx=(short)dx;
@@ -917,7 +961,631 @@ public class RasBuffer
     }
   }
 
-  public static void DrawCylinder(int x1,int y1,int z1, int x2,int y2,int z2,
+private static void DrawCylinderCaps( int x1, int y1, int z1,
+                              int x2, int y2, int z2,
+                              int c1, int c2, int rad )
+{
+    int offset;
+    int inten1,inten2,s1,s2,absx;
+    int wide;
+    int dx,dy,dz;
+    int lx = x2-x1;
+    int ly = y2-y1;
+    boolean p;
+    //int alts, altc;
+
+    int end = ly*view.yskip+lx;
+    int temp = y1*view.yskip+x1;
+    int fold = temp;
+    int dold = temp;
+
+    s1 = s2 = 0;
+
+    temp = -(rad*view.yskip);
+    for( dy= -rad; dy<=rad; dy++ )
+    {   wide = LookUp[rad][Math.abs(dy)];
+        //alts = 0;
+
+        for( dx= -wide; dx<=wide; dx++ )
+        {
+	    short depth;
+	    absx = Math.abs(dx);
+            dz = LookUp[wide][absx];
+	    int inten = dz + dz + dx + dy;
+            if( inten>0 )
+            {   inten = (int)((inten*ColConst[rad])>>ColBits);
+                // inten = (int)(ColourMask*inten + 0.1);
+                if( inten>ColourMask ) inten = ColourMask;
+            } else inten = 0;
+
+            //if( UseDepthCue )
+            //{   inten1 = inten - DepthTable[inten][s1];
+            //    if( inten1<0 ) inten1 = 0;
+            //    inten2 = inten - DepthTable[inten][s2];
+            //    if( inten2<0 ) inten2 = 0;
+            //} else
+            inten2 = inten1 = inten;
+
+            offset = temp+dx;
+	    if (wide == 0) continue;
+
+            //dptr = dold+offset;
+	    depth = (short) (z1+dz);
+	    // XXX
+            p = (4*dx*dx*rad*rad + 4*dy*dy*wide*wide < rad*rad*wide*wide );
+            //SETPIXELP(dptr,fold+offset,depth,Lut[c1+inten1], \
+            //Lut[inten1],p);
+	    if(XValid(x1+dx) && YValid(y1+dy))
+            if( depth > view.dbuf[dold+offset]) 
+            {  view.dbuf[dold+offset] = (short)(depth);
+               view.fbuf[fold+offset] = Lut[c1+inten1];
+            }
+
+            //dptr = dold+(offset+end);
+	    depth = (short) (z2+dz);
+            p = (4*dx*dx*rad*rad + 4*dy*dy*wide*wide < rad*rad*wide*wide);
+            //SETPIXELP(dptr,fold+(offset+end),depth,Lut[c2+inten2], \
+            //Lut[inten2],p);
+	    if(XValid(x2+dx) && YValid(y2+dy))
+            if( depth > view.dbuf[dold+(offset+end)]) 
+            {   view.dbuf[dold+(offset+end)] = (short)(depth);
+               view.fbuf[fold+(offset+end)] = Lut[c2+inten2];
+            }
+        }
+        temp += view.yskip;
+    }
+  }
+
+public static void DrawCylinder( int x1, int y1, int z1,
+                   int x2, int y2, int z2,
+                   int c1, int c2, int rad)
+{
+    int wide,rads,tmp;
+    int lx,ly,lz,dx,dy,dz;
+    double rx,ry,rz;
+    int rx2,ry2,rz2;
+    double ynor,cosy,siny,znor,cosz,sinz,temp;
+
+    int ax,ay,az,bx,by,bz;
+    double inten,lightfactor;
+    /*
+    double CapInten;
+    boolean cap=true;
+    */
+
+    int offset;
+    int zerr,ystep,err;
+    int ix,iy;
+    int col,mid;
+    int altc,cola,s;
+    boolean p;
+
+    //if( cap )
+    //{   ClipCylinder(x1,y1,z1,x2,y2,z2,c1,c2,rad,altl,arad,cap);
+    //    return;
+    //}
+
+    /* Avoid ArcTable Overflow! */
+    if( rad > MAXRAD ) rad = MAXRAD;
+
+    /* Trivial Case */
+    if( (x1==x2) && (y1==y2) )
+    {   if( z1>z2 )
+        {      DrawSphere(x1,y1,z1,rad,c1);
+        } else DrawSphere(x2,y2,z2,rad,c2);
+        return;
+    }
+
+    if( z1<z2 )
+    {   tmp=x1; x1=x2; x2=tmp;
+        tmp=y1; y1=y2; y2=tmp;
+        tmp=z1; z1=z2; z2=tmp;
+        tmp=c1; c1=c2; c2=tmp;
+    }
+
+    lx = x2-x1;
+    ly = y2-y1;
+    lz = z2-z1;
+
+    DrawCylinderCaps(x1,y1,z1,x2,y2,z2,c1,c2,rad);
+
+    //altc = 0;
+    //if ( altl != '\0' && altl != ' ')
+    //  altc = AltlColours[((int)altl)&(AltlDepth-1)];
+    //cola = altc;
+    lightfactor = (double)(rad)*RootSix;
+    //if( UseDepthCue )
+    //{   s = (ColourDepth*(ImageRadius-z1+ZOffset-ShiftS))/ImageSize;
+    //    if( s<0 ) s = 0;
+    //    if( s>ColourMask ) s = ColourMask;
+    //}
+
+    ix = (lx<0)? -1:1;
+    iy = (ly<0)? -1:1;
+
+    dx = ix*lx;
+    dy = iy*ly;
+    ystep = iy*view.yskip;
+    dz = lz;
+
+    rads = rad*rad;
+    tmp = lx*lx+ly*ly;
+    znor = Math.sqrt(tmp);
+    cosz = (double)lx/znor;
+    sinz = (double)ly/znor;
+    ynor = Math.sqrt(tmp+lz*lz);
+    cosy = (double)lz/ynor;
+    siny = (double)znor/ynor;
+
+/*    if( cap )
+    {   CapInten = -(lx+ly+lz+lz);
+        CapInten /= (ynor*RootSix);
+        if( CapInten > 0.0 )
+        {   CapInten = (char)(ColourMask*CapInten);
+            if( CapInten>ColourMask ) CapInten = ColourMask;
+        } else CapInten = 0;
+    }
+    */
+
+    if( rad != CurrentRad )
+    {   ArcTablePtr=0;
+        if(ArcTable[0] == null)
+        {
+          int i;
+          for(i = 0; i < ArcTableEntry.ARCSIZE; ++i)
+          {
+		ArcTable[i] = new ArcTableEntry();
+          }
+        }
+        for( wide=-2*rad; wide<2*rad; wide++ )
+        {    ArcTable[ArcTablePtr].x = Math.max(1,Math.sqrt(rads-((double)wide*wide)/4));
+            ArcTablePtr++;
+        }
+        CurrentRad = rad;
+    }
+
+    ArcTablePtr=0;
+    for( wide=0;wide<(rad*4);wide++ )
+    {    /*spatial rotation along y*/
+        rx = - ArcTable[ArcTablePtr].x*cosy;
+        ry = (double)ix*((double)wide/2-rad);
+        rz = ArcTable[ArcTablePtr].x*siny;
+        ArcTablePtr++;
+        /*spatial rotation along z*/
+        temp = rx*cosz - ry*sinz;
+        ry = rx*sinz + ry*cosz;
+        rx = temp;
+        /*rz = rz*/
+
+        /*round up*/
+        //RoundEdges
+        if( rx>=0.5 ) rx2 = (int)((rx+0.5));
+        else rx2 = (int)((rx-0.5));
+        if( ry>=0.5 ) ry2 = (int)((ry+0.5));
+        else ry2 = (int)((ry-0.5));
+        if( rz>=0.5 ) rz2 = (int)((rz+0.5));
+        else rz2 = (int)((rz-0.5));
+
+        //LineInten;
+        inten = (rx)+(ry)+(rz)+(rz);
+        //inten /= lightfactor;
+        if( inten > 0.0 )
+        {
+	    inten = (int)((int)(inten*ColConst[rad])>>ColBits);
+      	    //inten = (int)(ColourMask*inten + 0.1);
+            if( inten>ColourMask ) inten = ColourMask;
+            //if( UseDepthCue )
+            //{   inten -= DepthTable[(char)inten][s];
+            //    if( inten<0 ) inten = 0;
+            //}
+        } else inten = 0;
+        col = c1;
+
+        ax = x1 + rx2; bx = ax + lx;
+        ay = y1 + ry2; by = ay + ly;
+        az = z1 + rz2; bz = az + lz;
+
+        //ClipLine(x1+rx2,y1+ry2,z1+rz2,x1-rx2,y1-ry2,z1-rz2,col);//,altl);
+
+        mid = (ax+bx)>>1;
+
+        offset = (int)ay*view.yskip + ax;
+        //fptr = View.fbuf+offset;
+        //dptr = View.dbuf+offset;
+
+        //SETPIXEL(dptr,fptr,az,Lut[c1+(char)inten]);
+        //SETPIXEL(dptr,fptr,az,Lut[c1+inten]);
+        if(XValid(ax) && YValid(ay))
+        if( (short)(az) > view.dbuf[offset] )
+        {   view.dbuf[offset] = (short)az;
+            view.fbuf[offset] = Lut[c1+(int)inten];
+        }
+        if( dx>dy )
+        {   err = zerr = -(dx>>1);
+	    int yy=ay;
+            if( c1 != c2 )
+            {   mid = (ax+bx)>>1;
+                while( ax!=mid ) //XLineStep;
+                  { if((err+=dy)>0) {
+		    //fptr+=ystep; dptr+=ystep;
+		    offset+=ystep;
+		    yy+=iy;
+		    err-=dx; }
+                    //fptr+=ix; dptr+=ix;
+		    offset+=ix;
+		    ax+=ix;
+                    //p = altc && (ax-mid<(dx/4)) && (mid-ax<(dx/4));
+                    p = (ax-mid<(dx/4)) && (mid-ax<(dx/4));
+                    if(XValid(ax) && YValid(yy))
+                    //CommonLineStep(dx);
+                    if( (short)(az) > view.dbuf[offset])
+                                   {   view.dbuf[offset] = (short)(az);
+                                       view.fbuf[offset]=Lut[col+(int)inten];
+                                   }
+                    if(XValid(ax-iy) && YValid(yy))
+                    if( (short)(az) > view.dbuf[offset-iy])
+                                   {   view.dbuf[offset-iy] = (short)(az);
+                                       view.fbuf[offset-iy]=Lut[col+(int)inten];
+                                   }
+ 		    if( (zerr-=dz)>0 ) while (zerr>0) { zerr -= dx; az -= 1; }
+		  }
+                col = c2;
+            }
+            while( ax!=bx ) //XLineStep;
+                  { if((err+=dy)>0) {
+		    //fptr+=ystep; dptr+=ystep;
+		    offset+=ystep;
+		    yy+=iy;
+		    err-=dx; }
+                    //fptr+=ix; dptr+=ix;
+		    offset+=ix;
+		    ax+=ix;
+                    //CommonLineStep(dx);
+                    if(XValid(ax) && YValid(yy))
+                    if( (short)(az) > view.dbuf[offset])
+                                   {   view.dbuf[offset] = (short)(az);
+                                       view.fbuf[offset]=Lut[col+(int)inten];
+                                   }
+                    if(XValid(ax-iy) && YValid(yy))
+                    if( (short)(az) > view.dbuf[offset-iy])
+                                   {   view.dbuf[offset-iy] = (short)(az);
+                                       view.fbuf[offset-iy]=Lut[col+(int)inten];
+                                   }
+ 		    if( (zerr-=dz)>0 ) while (zerr>0) { zerr -= dx; az -= 1; }
+		  }
+        } else
+        {   err = zerr = -(dy>>1);
+	    int xx=ax;
+            if( c1 != c2 )
+            {   mid = (ay+by)>>1;
+                while( ay!=mid ) //YLineStep;
+                   { if((err+=dx)>0) {
+		    //fptr+=ix; dptr+=ix;
+		    offset+=ix;
+		    xx+=ix;
+		    err-=dy; }
+                    //fptr+=ystep; dptr+=ystep;
+		    offset+=ystep;
+		    ay+=iy;
+                    //CommonLineStep(dy);
+                    if(XValid(xx) && YValid(ay))
+                    if( (short)(az) > view.dbuf[offset])
+                                   {   view.dbuf[offset] = (short)(az);
+                                       view.fbuf[offset]=Lut[col+(int)inten];
+                                   }
+                    if(XValid(xx-iy) && YValid(ay))
+                    if( (short)(az) > view.dbuf[offset-iy])
+                                   {   view.dbuf[offset-iy] = (short)(az);
+                                       view.fbuf[offset-iy]=Lut[col+(int)inten];
+                                   }
+
+ 		    if( (zerr-=dz)>0 ) while (zerr>0) { zerr -= dy; az -= 1; }
+		   }
+                col = c2;
+            }
+            while( ay!=by ) //YLineStep;
+                   { if((err+=dx)>0) {
+		    //fptr+=ix; dptr+=ix;
+		    offset+=ix;
+		    xx+=ix;
+		    err-=dy; }
+                    //fptr+=ystep; dptr+=ystep;
+		    offset+=ystep;
+		    ay+=iy;
+                    //p = altc && (ax-mid<(dx/4)) && (mid-ax<(dx/4));
+                    //p = (ay-mid<(dy/4)) && (mid-ay<(dy/4));
+                    //CommonLineStep(dy);
+                    if(XValid(xx) && YValid(ay))
+                    if( (short)(az) > view.dbuf[offset])
+                                   {   view.dbuf[offset] = (short)(az);
+                                       view.fbuf[offset]=Lut[col+(int)inten];
+                                   }
+                    if(XValid(xx-iy) && YValid(ay))
+                    if( (short)(az) > view.dbuf[offset-iy])
+                                   {   view.dbuf[offset-iy] = (short)(az);
+                                       view.fbuf[offset-iy]=Lut[col+(int)inten];
+                                   }
+ 		    if( (zerr-=dz)>0 ) while (zerr>0) { zerr -= dy; az -= 1; }
+		   }
+        }
+    }
+}
+
+
+public static void DrawCylinderOnAxe( int x1, int y1, int z1,
+                   int x2, int y2, int z2,
+                   int c1, int c2, int rad )
+{
+    int rads;
+    int lx,ly,lz,dx,dy,dz;
+    int ix,iy;
+    double rx,ry,rz;
+    int rx2,ry2,rz2;
+    double nor,cos,sin,temp;
+    int ax,ay,az,bx,by,bz;
+    double inten, lightfactor;
+
+    int offset,off;
+    int zerr,ystep,err;
+    int col, mid,altc,cola,s;
+    boolean p;
+
+    lx = x2-x1;
+    ly = y2-y1;
+    lz = z2-z1;
+
+    ix = (lx<0)? -1:1;
+    iy = (ly<0)? -1:1;
+
+    DrawCylinderCaps(x1,y1,z1,x2,y2,z2,c1,c2,rad);
+
+    //altc = 0;
+    //if ( altl != '\0' && altl != ' ')
+    //  altc = AltlColours[((int)altl)&(AltlDepth-1)];
+    //cola = altc;
+    lightfactor = (double)(rad)*RootSix;
+    //if( UseDepthCue )
+    //{   s = (ColourDepth*(ImageRadius-z1+ZOffset-ShiftS))/ImageSize;
+    //    if( s<0 ) s = 0;
+    //    if( s>ColourMask ) s = ColourMask;
+    //}
+
+    rads = rad*rad;
+    if( rad != CurrentRad )
+    {   ArcTablePtr=0;
+        if(ArcTable[0] == null)
+        {
+          int i;
+          for(i = 0; i < ArcTableEntry.ARCSIZE; ++i)
+          {
+		ArcTable[i] = new ArcTableEntry();
+          }
+        }
+
+        for( rx2=-2*rad; rx2<2*rad; rx2++ )
+        {   ArcTable[ArcTablePtr].x = Math.sqrt(rads-((double)rx2*rx2)/4);
+            ArcTablePtr++;
+        }
+        CurrentRad = rad;
+    }
+
+    if( lx==0 )
+    {    nor = Math.sqrt(lz*lz+ly*ly);
+        cos = (double)lz/nor;
+        sin = (double)ly/nor;
+
+        ArcTablePtr=0;
+        for( rx2=-rad;rx2<rad;rx2++ )
+        {    //spatial rotation along y
+            rx = rx2;
+            temp = iy*ArcTable[ArcTablePtr].x;
+            ry = -temp*cos;
+            rz =  temp*sin;
+            ArcTablePtr++;
+            ArcTablePtr++;
+
+            //RoundEdges
+            if( rx>=0.5 ) rx2 = (int)((rx+0.5));
+            else rx2 = (int)((rx-0.5));
+            if( ry>=0.5 ) ry2 = (int)((ry+0.5));
+            else ry2 = (int)((ry-0.5));
+            if( rz>=0.5 ) rz2 = (int)((rz+0.5));
+            else rz2 = (int)((rz-0.5));
+
+            ax = x1 + rx2; bx = ax + lx;
+
+            ay = y1 + ry2; by = ay + ly;
+            az = z1 + rz2; bz = az + lz;
+
+            //LineInten;
+            inten = (rx)+(ry)+(rz)+(rz);
+            inten /= lightfactor;
+            if( inten > 0.0 )
+            //{   inten = (int)((inten*ColConst[rad])>>ColBits);
+            //                    if( inten>ColourMask ) inten = ColourMask;
+            {   inten = (int)(ColourMask*inten + 0.1);
+                if( inten>ColourMask ) inten = ColourMask;
+                //if( UseDepthCue )
+                //{   inten -= DepthTable[(char)inten][s];
+                //    if( inten<0 ) inten = 0;
+                //}
+            } else inten = 0;
+
+            offset = (int)ay*view.yskip + ax;
+            //fptr = view.fbuf+offset;
+            //dptr = view.dbuf+offset;
+            //SETPIXEL(dptr,fptr,az,Lut[c1+inten]);
+            if( az > view.dbuf[offset] )
+            {   view.dbuf[offset] = (short)az;
+                view.fbuf[offset] = Lut[c1+(int)inten];
+            }
+
+            dx = 0;
+            dy = iy*ly;
+            ystep = iy*view.yskip;
+            dz = lz;
+            col = c1;
+
+            mid = (ay+by)>>1;
+            err = zerr = -(dy>>1);
+            if( c1 != c2 )
+            {   while( ay!=mid ) //YLineStep;
+                   { if((err+=dx)>0) {
+		    //fptr+=ix; dptr+=ix;
+		    offset+=ix;
+		    err-=dy; }
+                    //fptr+=ystep; dptr+=ystep;
+		    offset+=ystep;
+		    ay+=iy;
+                    //p = altc && (ax-mid<(dx/4)) && (mid-ax<(dx/4));
+                    //p = (ay-mid<(dy/4)) && (mid-ay<(dy/4));
+                    //CommonLineStep(dy);
+                    if( (az) >= view.dbuf[offset])
+                                   {   view.dbuf[offset] = (short)(az);
+                                       view.fbuf[offset]=Lut[col+(int)inten];
+                                   }
+                    if( (az) >= view.dbuf[offset-iy])
+                                   {   view.dbuf[offset-iy] = (short)(az);
+                                       view.fbuf[offset-iy]=Lut[col+(int)inten];
+                                   }
+
+ 		    if( (zerr+=dz)>0 ) while (zerr>0) { zerr -= dy; az -= 1; }
+		   }
+      		    col = c2;
+            }
+            while( ay!=by ) //YLineStep;
+                   { if((err+=dx)>0) {
+		    //fptr+=ix; dptr+=ix;
+		    offset+=ix;
+		    err-=dy; }
+                    //fptr+=ystep; dptr+=ystep;
+		    offset+=ystep;
+		    ay+=iy;
+                    //p = altc && (ax-mid<(dx/4)) && (mid-ax<(dx/4));
+                    p = (ay-mid<(dy/4)) && (mid-ay<(dy/4));
+                    //CommonLineStep(dy);
+                    if( (az) >= view.dbuf[offset])
+                                   {   view.dbuf[offset] = (short)(az);
+                                       view.fbuf[offset]=Lut[col+(int)inten];
+                                   }
+                    if( (az) >= view.dbuf[offset-iy])
+                                   {   view.dbuf[offset-iy] = (short)(az);
+                                       view.fbuf[offset-iy]=Lut[col+(int)inten];
+                                   }
+ 		    if( (zerr+=dz)>0 ) while (zerr>0) { zerr -= dy; az -= 1; }
+		   }
+       	    }
+    } else if( ly==0 )
+    {
+        nor = (int)Math.sqrt(lx*lx+lz*lz);
+        cos = (double)lz/nor;
+        sin = (double)lx/nor;
+
+        ArcTablePtr=0;
+        for( ry2=-rad;ry2<rad;ry2++ )
+        {    temp = ix*ArcTable[ArcTablePtr].x;
+            rx = -temp*cos;
+            ry = ry2;
+            rz =  temp*sin;
+            ArcTablePtr++;
+            ArcTablePtr++;
+
+            //RoundEdges
+            if( rx>=0.5 ) rx2 = (int)((rx+0.5));
+            else rx2 = (int)((rx-0.5));
+            if( ry>=0.5 ) ry2 = (int)((ry+0.5));
+            else ry2 = (int)((ry-0.5));
+            if( rz>=0.5 ) rz2 = (int)((rz+0.5));
+            else rz2 = (int)((rz-0.5));
+
+            ax = x1 + rx2; bx = ax + lx;
+            ay = y1 + ry2; by = ay + ly;
+            az = z1 + rz2; bz = az + lz;
+	    
+            //LineInten;
+            inten = (rx)+(ry)+(rz)+(rz);
+            inten /= lightfactor;
+            if( inten > 0.0 )
+            //{   inten = (int)((inten*ColConst[rad])>>ColBits);
+            //                    if( inten>ColourMask ) inten = ColourMask;
+            {   inten = (int)(ColourMask*inten + 0.1);
+                if( inten>ColourMask ) inten = ColourMask;
+                //if( UseDepthCue )
+                //{   inten -= DepthTable[(char)inten][s];
+                //    if( inten<0 ) inten = 0;
+                //}
+            } else inten = 0;
+
+
+            offset = (int)ay*view.yskip + ax;
+            //fptr = view.fbuf+offset;
+            //dptr = view.dbuf+offset;
+
+            //SETPIXEL(dptr,fptr,az,Lut[c1+inten]);
+            if( az > view.dbuf[offset] )
+            {   view.dbuf[offset] = (short)az;
+                view.fbuf[offset] = Lut[c1+(int)inten];
+            }
+
+            dx = ix*lx;
+            dy = 0;
+            ystep = iy*view.yskip;
+            dz = lz;
+            col = c1;
+
+            mid = (ax+bx)>>1;
+            err = zerr = -(dx>>1);
+            if( c1 != c2 )
+            {   while( ax!=mid ) //XLineStep;
+                  { if((err+=dy)>0) {
+		    //fptr+=ystep; dptr+=ystep;
+		    offset+=ystep;
+		    err-=dx; }
+                    //fptr+=ix; dptr+=ix;
+		    offset+=ix;
+		    ax+=ix;
+                    //p = altc && (ax-mid<(dx/4)) && (mid-ax<(dx/4));
+                    p = (ax-mid<(dx/4)) && (mid-ax<(dx/4));
+                    //CommonLineStep(dx);
+                    if( (az) >= view.dbuf[offset])
+                                   {   view.dbuf[offset] = (short)(az);
+                                       view.fbuf[offset]=Lut[col+(int)inten];
+                                   }
+                    if( (az) >= view.dbuf[offset-iy])
+                                   {   view.dbuf[offset-iy] = (short)(az);
+                                       view.fbuf[offset-iy]=Lut[col+(int)inten];
+                                   }
+ 		    if( (zerr+=dz)>0 ) while (zerr>0) { zerr -= dx; az -= 1; }
+		  }
+
+                col = c2;
+            }
+            while( ax!=bx ) // XLineStep;
+                  { if((err+=dy)>0) {
+		    //fptr+=ystep; dptr+=ystep;
+		    offset+=ystep;
+		    err-=dx; }
+                    //fptr+=ix; dptr+=ix;
+		    offset+=ix;
+		    ax+=ix;
+                    //p = altc && (ax-mid<(dx/4)) && (mid-ax<(dx/4));
+                    p = (ax-mid<(dx/4)) && (mid-ax<(dx/4));
+                    //CommonLineStep(dx);
+                    if( (az) >= view.dbuf[offset])
+                                   {   view.dbuf[offset] = (short)(az);
+                                       view.fbuf[offset]=Lut[col+(int)inten];
+                                   }
+                    if( (az) >= view.dbuf[offset-iy])
+                                   {   view.dbuf[offset-iy] = (short)(az);
+                                       view.fbuf[offset-iy]=Lut[col+(int)inten];
+                                   }
+ 		    if( (zerr+=dz)>0 ) while (zerr>0) { zerr -= dx; az += 1; }
+		  }
+        }
+    }
+  }
+
+  public static void DrawCylinderOld(int x1,int y1,int z1, int x2,int y2,int z2,
 				  int c1,int c2,int rad)
   {
     int dbase;
@@ -975,7 +1643,7 @@ public class RasBuffer
         if( c1 != c2 )
         {   mid = (x1+x2)>>1;
             while( x1!=mid )
-            {   z1 += zrate;  if( (zerr-=lz)>0 ) { zerr-=ax; z1--; }
+            {   z1 += zrate;  if( (zerr-=lz)>0 ) while(zerr>0) { zerr-=ax; z1--; }
                 fbase+=ix; dbase+=ix; x1+=ix;
                 if( (err+=ay)>0 )
                 {
@@ -988,7 +1656,7 @@ public class RasBuffer
         }
 
         while( x1!=x2 )
-        {   z1 += zrate;  if( (zerr-=lz)>0 ) { zerr-=ax; z1--; }
+        {   z1 += zrate;  if( (zerr-=lz)>0 ) while(zerr>0) { zerr-=ax; z1--; }
             fbase+=ix; dbase+=ix; x1+=ix;
             if( (err+=ay)>0 )
             {
@@ -1005,7 +1673,7 @@ public class RasBuffer
         if( c1 != c2 )
         {   mid = (y1+y2)>>1;
             while( y1!=mid )
-            {   z1 += zrate;  if( (zerr-=lz)>0 ) { zerr-=ay; z1--; }
+            {   z1 += zrate;  if( (zerr-=lz)>0 )while(zerr>0)  { zerr-=ay; z1--; }
                 fbase+=ystep; dbase+=ystep; y1+=iy;
                 if( (err+=ax)>0 )
                 {
@@ -1018,7 +1686,7 @@ public class RasBuffer
         }
 
         while( y1!=y2)
-        {   z1 += zrate;  if( (zerr-=lz)>0 ) { zerr-=ay; z1--; }
+        {   z1 += zrate;  if( (zerr-=lz)>0 ) while(zerr>0)  { zerr-=ay; z1--; }
             fbase+=ystep; dbase+=ystep; y1+=iy;
             if( (err+=ax)>0 )
             {
@@ -1082,7 +1750,7 @@ public class RasBuffer
         zerr = err = -(ax>>1);
 
         while( x1!=x2 )
-        {   z1 += zrate;  if( (zerr-=lz)>0 ) { zerr-=ax; z1--; }
+        {   z1 += zrate;  if( (zerr-=lz)>0 ) while(zerr > 0) { zerr-=ax; z1--; }
             fbase+=ix; dbase+=ix; x1+=ix;
 	    if( (err+=ay)>0 )
 	    {
@@ -1098,7 +1766,7 @@ public class RasBuffer
         zerr = err = -(ay>>1);
 
         while( y1!=y2)
-        {   z1 += zrate;  if( (zerr-=lz)>0 ) { zerr-=ay; z1--; }
+        {   z1 += zrate;  if( (zerr-=lz)>0 ) while(zerr > 0) { zerr-=ay; z1--; }
             fbase+=ystep; dbase+=ystep; y1+=iy;
 	    if( (err+=ax)>0 )
 	    {
@@ -1155,8 +1823,8 @@ public class RasBuffer
 //    }
 
     offset = (int)y1*view.yskip + x1;
-//    fptr = View.fbuf+offset;
-//    dptr = View.dbuf+offset;
+//    fptr = view.fbuf+offset;
+//    dptr = view.dbuf+offset;
 
 //    SETPIXEL(dptr,fptr,z1,c);
     if (view.dbuf[offset] < z1) {
@@ -1215,7 +1883,7 @@ public class RasBuffer
                 view.dbuf[offset]=(short)z1;
                 view.fbuf[offset]=c;
               }
-              if( (zerr+=dz)>0 ) { zerr-=(dx); z1+=iz; }
+              if( (zerr+=dz)>0 ) while (zerr>0) { zerr-=(dx); z1+=iz; }
             }
             c = Lut[col2];
         }
@@ -1235,7 +1903,7 @@ public class RasBuffer
              view.dbuf[offset]=(short)z1;
              view.fbuf[offset]=c;
           }
-          if( (zerr+=dz)>0 ) { zerr-=(dx); z1+=iz; }
+          if( (zerr+=dz)>0 ) while (zerr>0){ zerr-=(dx); z1+=iz; }
         }
     } else
     {   if( dz >= dy )
@@ -1266,7 +1934,7 @@ public class RasBuffer
                  view.dbuf[offset]=(short)z1;
                  view.fbuf[offset]=c;
                }
-               if( (zerr+=dz)>0 ) { zerr-=(dy); z1+=iz; }
+               if( (zerr+=dz)>0 ) while (zerr>0) { zerr-=(dy); z1+=iz; }
             }
             c = Lut[col2];
         }
@@ -1287,7 +1955,7 @@ public class RasBuffer
              view.dbuf[offset]=(short)z1;
              view.fbuf[offset]=c;
            }
-           if( (zerr+=dz)>0 ) { zerr-=(dy); z1+=iz; }
+           if( (zerr+=dz)>0 ) while (zerr>0) { zerr-=(dy); z1+=iz; }
         }
     }
   }
@@ -1499,10 +2167,7 @@ public class RasBuffer
                 y1+=iy;
             }
 
-            if( (zerr+=dz)>0 )
-            {   zerr -= dx;
-                z1 += iz;
-            }
+            if( (zerr+=dz)>0 ) while (zerr>0) {   zerr -= dx; z1 += iz; }
 
 //            fptr+=ix; dptr+=ix;
             offset+=ix;
@@ -1548,10 +2213,7 @@ public class RasBuffer
                 x1+=ix;
             }
 
-            if( (zerr+=dz)>0 )
-            {   zerr -= dy;
-                z1 += iz;
-            }
+            if( (zerr+=dz)>0 ) while(zerr>0) {   zerr -= dy; z1 += iz; }
 //            fptr+=ystep; dptr+=ystep;
             offset+=ystep;
             y1+=iy;
@@ -1760,15 +2422,17 @@ public class RasBuffer
   {
 //  InitialiseTransform();
     Resize(ymax, xmax);
-    t1 = System.currentTimeMillis();
+//    t1 = System.currentTimeMillis();
 //  System.err.println("imageProducer " + view.xmax + "," + view.ymax + "," + view.yskip);
     if (RedrawFlag || RasmolImg == null) {
+      int i;
       ColorModel colormodel = new DirectColorModel(24,0xff0000,0xff00,0xff);
       RasmolImg= new MemoryImageSource(view.xmax, view.ymax, colormodel,
 				       view.fbuf, 0, view.yskip);
       RasmolImg.setAnimated(true);
-      RasmolImg.setFullBufferUpdates(false);
+      RasmolImg.setFullBufferUpdates(true);
       RedrawFlag = false;
+      for (i=0;i<view.fbuf.length;i++) view.fbuf[i]= Lut[BackCol];
     } else {
       RasmolImg.newPixels(0,0,xmax,ymax);
     }

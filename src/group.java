@@ -28,6 +28,8 @@ import java.awt.image.ImageProducer;
 import java.lang.Math;
 import java.util.Vector;
 import java.io.*;
+import java.awt.Font;
+
 import atom;
 import PDBAtom;
 import RasBuffer;
@@ -50,16 +52,17 @@ public class group
   "$Id: group.java,v 1.8 2000/04/15 23:32:12 pcm Exp $";
   public Vector atomList;
   public Vector bondList;
-//  public Vector chainList; //by wkpark
+//  public Vector chainList;
   public Vector termList;
   private boolean needToEnumerateTerms;
   private boolean showForces = false;
+  private boolean calcForces = false;
   private Vector drawingList;
   public Dimension mypanel_size;
   public view v;
-  public double forceMultiplier = 100.0;
+  public double forceMultiplier = 10.0;
 
-  private Image backBuffer;
+  private Image backBuffer = null;
   private Graphics backGC;
   private Dimension backSize;
 
@@ -67,6 +70,11 @@ public class group
 
   private double cenX=0,cenY=0,cenZ=0;
   private double worldSize,worldRadius;
+
+  //
+  public Font font;
+  public int fontSize=14;
+  public FontMetrics fontMet;
 
   public group ()
   {
@@ -90,8 +98,9 @@ public class group
 
   public void setDefaultZoomFactor()
   {
-    v.zoomFactor = 25;
+    v.zoomFactor = 25.;
   }
+
   public void empty ()
   {
     needToEnumerateTerms = true;
@@ -99,6 +108,12 @@ public class group
     bondList = new Vector ();
     termList = new Vector ();
   }
+  public void setShowForces (boolean sf,boolean calc)
+  {
+    showForces = sf;
+    if (calc) computeForces ();
+  }
+
   public void setShowForces (boolean sf)
   {
     showForces = sf;
@@ -255,7 +270,7 @@ public class group
   public void resizeAtoms(double parm)
   {
     int i;
-    PDBAtom.atomsize_parm = parm;
+    v.atomsize_parm = parm;
     for (i = 0; i < atomList.size (); i++)
       ((PDBAtom)atomList.elementAt(i)).setParms();
   }
@@ -263,10 +278,10 @@ public class group
   public void setBond(double parm)
   {
     int i;
-    PDBAtom.bondsize_parm = parm;
+    v.bondsize_parm = parm;
   }
 
-  public void centerAtoms ()
+  public void centerAtoms (int mode)
   {
     int i, j;
     atom a;
@@ -279,16 +294,21 @@ public class group
       }
     for (j = 0; j < 3; j++)
       x[j] /= atomList.size ();
-    for (i = 0; i < atomList.size (); i++)
-      {
-        a = (atom) atomList.elementAt (i);
-        for (j = 0; j < 3; j++)
-          a.x[j] -= x[j];
-      }
-
+    /*
+    if (mode > 0)
+      for (i = 0; i < atomList.size (); i++)
+        {
+          a = (atom) atomList.elementAt (i);
+          for (j = 0; j < 3; j++)
+            a.x[j] -= x[j];
+        }
+    */
     cenX=x[0];
     cenY=x[1];
     cenZ=x[2];
+    if (mode > 0) {
+      v.setDefaultCenter(cenX,cenY); // XXX
+    }
   }
 
   public void InitialTransform ()
@@ -296,7 +316,7 @@ public class group
     int j;
     double max=0.0;
     atom a;
-    centerAtoms ();
+    centerAtoms (0);
 
     for(j = 0; j < atomList.size(); ++j)
     {
@@ -477,8 +497,11 @@ public class group
     Vector dlist = new Vector ();
     setBackgroundBuffer(mypanel,true);
     //setBackgroundBuffer(mypanel,false);
+    //if (calcForces)
+    //  computeForces ();
 
     dl_bond dlb = null;
+    dl_atom dla = null;
     for (i = 0; i < bondList.size (); i ++)
     {
       Bond b = (Bond)bondList.elementAt (i);
@@ -487,23 +510,39 @@ public class group
       dlb = new dl_bond (a1, a2, v);
       dlist.addElement (dlb);
     }
+    for (i = 0; i < atomList.size (); i++)
+    {
+      atom a=(atom)atomList.elementAt(i);
+      if (a.bonds.size () == 0) {
+	dla = new dl_atom (a, v);
+	dlist.addElement (dla);
+      }
+      if (showForces)
+      {
+        dlforce dlf = new dlforce (a.x, a.f, v);
+        dlf.setForceMultiplier (forceMultiplier);
+        dlist.addElement (dlf);
+      }
+    }
     if (dlb != null)
       dlb.quickpaint (dlist, backGC);
-
+    else if (dla != null)
+      dla.quickpaint (dlist, backGC);
   }
 
   private void setBackgroundBuffer(Panel mypanel,boolean use_ras)
   {
-    if (backSize == null || backSize.height != mypanel.getSize().height
-	|| backSize.width != mypanel.getSize().width)
+//    if (backSize == null || backSize.height != mypanel.getSize().height
+//	|| backSize.width != mypanel.getSize().width)
     {
       RasBuffer.CPKColourAttrib(atomList);
       if(use_ras) {
-	ImageProducer prod = RasBuffer.imageProducer(mypanel_size.width, mypanel_size.height);
-	backBuffer = mypanel.createImage(prod);
+	ImageProducer prod=
+           RasBuffer.imageProducer(mypanel_size.width, mypanel_size.height);
+	backBuffer=mypanel.createImage(prod);
       } else {
         backBuffer=mypanel.createImage(mypanel_size.width, mypanel_size.height);
-	backGC = backBuffer.getGraphics();
+        backGC = backBuffer.getGraphics();
       }
       backSize = mypanel_size;
     }
@@ -516,12 +555,12 @@ public class group
   public void stickPaint (Panel mypanel)
   {
     int i, j;
-//    dl_atom dla = null;
+    dl_atom dla = null;
     dl_bond dlb = null;
     Vector dlist = new Vector ();
     setBackgroundBuffer(mypanel,true);
-    if (showForces)
-      computeForces ();
+    //if (calcForces)
+    //  computeForces ();
 
     for (i = 0; i < bondList.size (); i++)
       {
@@ -530,20 +569,29 @@ public class group
 	atom a2 = b.destAtom();
 	dlb = new dl_bond (a1, a2, v);
 	dlist.addElement (dlb);
-	if (showForces)
-	  {
-	    dlforce dlf = new dlforce (a1.x, a1.f, v);
-	    dlf.setForceMultiplier (forceMultiplier);
-	    dlist.addElement (dlf);
-	  }
       }
 //    long t1 = System.currentTimeMillis();
 //    if (dla != null)
 //	dla.paint (dlist, backGC);
-    long t2 = System.currentTimeMillis();
+    //long t2 = System.currentTimeMillis();
+    for (i = 0; i < atomList.size (); i++)
+    {
+      atom a=(atom)atomList.elementAt(i);
+      if (a.bonds.size () == 0) {
+	dla = new dl_atom (a, v);
+	dlist.addElement (dla);
+      }
+      if (showForces) {
+        dlforce dlf = new dlforce (a.x, a.f, v);
+        dlf.setForceMultiplier (forceMultiplier);
+        dlist.addElement (dlf);
+      }
+    }
     if (dlb != null)
 	dlb.paint (dlist, backGC);
-    long tnow = System.currentTimeMillis();
+    else if (dla != null)
+	dla.paint (dlist, backGC);
+    //long tnow = System.currentTimeMillis();
     //System.err.println("group paint time " + (tnow - t1) + " " + (tnow - t2));
   }
   public void fullPaint (Panel mypanel)
@@ -553,14 +601,21 @@ public class group
     dl_bond dlb = null;
     Vector dlist = new Vector ();
     setBackgroundBuffer(mypanel,true);
-    if (showForces)
-      computeForces ();
+    //if (calcForces)
+    // computeForces ();
     for (i = 0; i < atomList.size (); i++)
       {
-	dla = new dl_atom ((atom) atomList.elementAt(i), v);
+        atom a = (atom) atomList.elementAt(i);
+	dla = new dl_atom (a, v);
 	dlist.addElement (dla);
+	if (showForces)
+	  {
+	    dlforce dlf = new dlforce (a.x, a.f, v);
+	    dlf.setForceMultiplier (forceMultiplier);
+	    dlist.addElement (dlf);
+	  }
       }
-    if(PDBAtom.atomsize_parm < 360)
+    if(v.atomsize_parm < 360)
       for (i = 0; i < bondList.size (); i++)
       {
 	Bond b = (Bond)bondList.elementAt (i);
@@ -568,20 +623,14 @@ public class group
 	atom a2 = b.destAtom();
 	dlb = new dl_bond (a1, a2, v);
 	dlist.addElement (dlb);
-	if (showForces)
-	  {
-	    dlforce dlf = new dlforce (a1.x, a1.f, v);
-	    dlf.setForceMultiplier (forceMultiplier);
-	    dlist.addElement (dlf);
-	  }
       }
-    long t1 = System.currentTimeMillis();
+    //long t1 = System.currentTimeMillis();
     if (dla != null)
 	dla.paint (dlist, backGC);
-    long t2 = System.currentTimeMillis();
+    //long t2 = System.currentTimeMillis();
     if (dlb != null)
 	dlb.paint (dlist, backGC);
-    long tnow = System.currentTimeMillis();
+    //long tnow = System.currentTimeMillis();
     //System.err.println("group paint time " + (tnow - t1) + " " + (tnow - t2));
   }
 
@@ -603,30 +652,44 @@ public class group
   {
     if(backBuffer != null) {
       g.drawImage(backBuffer, 0, 0, mypanel);
+      backBuffer=null;
     }
+  }
+
+  public void banner (String str, Color co, Panel mypanel)
+  {
+    if (backBuffer==null) return;
+    if (font == null) {
+      font = new Font("Times", Font.BOLD, fontSize);
+      fontMet = mypanel.getFontMetrics(font);
+    }
+    if (str == "") str="DisMol";
+
+    int sw = fontMet.stringWidth(str);
+    //int xx = (int)Math.round((double)(mypanel_size.width - sw) / 2D);
+    //int yy = mypanel_size.height - fontSize - 15;
+    int yy = fontSize;
+
+    Image image = mypanel.createImage(mypanel_size.width,mypanel_size.height);
+    Graphics2D g = (Graphics2D) image.getGraphics();
+    g.drawImage(backBuffer, 0, 0, mypanel);
+
+//    g.setRenderingHint(RenderingHints.KEY_ANTIALIASING,
+//                       RenderingHints.VALUE_ANTIALIAS_ON);
+
+    g.setColor(co);
+    g.setFont(font);
+    g.drawString(str, 2 , yy);
+    backBuffer=image;
   }
 
   public byte[] getPng()
   {
-//    File cookfile = null;
     byte[] pngbytes;
 
-//    System.dout.println("saving cooked as "+cookfile);
-//    try {
-//      FileOutputStream out = new FileOutputStream("rasmol.png");
-      
-      PngEncoder encode = new PngEncoder(backBuffer);
-      pngbytes=encode.pngEncode();
-      return pngbytes;
-
-//      out.write(pngbytes);
-//      out.flush();
-//      out.close();
-
-//    } catch (IOException e) {
-//      System.err.println("Trouble writing png file ");
-//    }
-//    return null;
+    PngEncoder encode = new PngEncoder(backBuffer);
+    pngbytes=encode.pngEncode();
+    return pngbytes;
   }
 
   private void enumerateTerms ()
@@ -640,6 +703,7 @@ public class group
       ((atom) atomList.elementAt (i)).rehybridize ();
 
     termList = new Vector ();
+ 
     atom a = new carbon ();
     term t;
     t = new lterm (a, a);
@@ -681,3 +745,5 @@ public class group
 //    centerAtoms ();
   }
 }
+
+// vim:et:sts=2

@@ -75,14 +75,21 @@ public class xyzreader
   {
     String Record;
     XYZGroup grp = new XYZGroup();
+    int atoms=0;
 
-    Record = GenericGroup.FetchRecord(fp);
-    int atoms = Integer.parseInt(Record.trim());
+    while(true) {
+      Record = GenericGroup.FetchRecord(fp);
+      //System.err.println("xyzreader.java::LoadXYZMolecule '" + Record + "'");
+      if (Record.trim() != "") break;
+    }
+    atoms = Integer.parseInt(Record.trim());
+    boolean has_force=false;
 
     /* Molecule (step) Description */
-    Record = GenericGroup.FetchRecord(fp);
+    Record = GenericGroup.FetchRecord(fp,1);
+    //int c = fp.read(); // XXX
     int i;
-    for(i = 0; i < atoms; i++)
+    for(i = 1; i <= atoms; i++)
     {
 	Record = GenericGroup.FetchRecord(fp);
 	StringTokenizer st = new StringTokenizer(Record);
@@ -99,14 +106,26 @@ public class xyzreader
 	double xpos = Double.valueOf(st.nextToken()).doubleValue();
 	double ypos = Double.valueOf(st.nextToken()).doubleValue();
 	double zpos = Double.valueOf(st.nextToken()).doubleValue();
- 
-	ptr.refno = grp.SimpleAtomType(type);
+
+        ptr.refno = grp.SimpleAtomType(type);
 	ptr.xorg =  (int)(250.0*xpos);
 	ptr.yorg =  (int)(250.0*ypos);
-	ptr.zorg = -(int)(250.0*zpos);
-	ptr.x[0] = xpos/4.0;
-	ptr.x[1] = ypos/4.0;
-	ptr.x[2] = zpos/4.0;
+	ptr.zorg =  -(int)(250.0*zpos);
+	//ptr.x[0] = xpos/4.0;
+	//ptr.x[1] = ypos/4.0;
+	//ptr.x[2] = zpos/4.0;
+	ptr.x[0] = xpos;
+	ptr.x[1] = ypos;
+	ptr.x[2] = -zpos;
+ 
+	if (count==7) {
+	   double[] f={0,0,0};
+           f[0]=Double.valueOf(st.nextToken()).doubleValue();
+           f[1]=Double.valueOf(st.nextToken()).doubleValue();
+           f[2]=Double.valueOf(st.nextToken()).doubleValue();
+	   ptr.f=f;
+	   has_force=true;
+	}
  
 	if( (count==5) || (count==8) )
         {
@@ -116,6 +135,7 @@ public class xyzreader
 	else ptr.temp = 0;
 	grp.ProcessAtom( ptr );
 	grp.addAtom(ptr);
+	if (!has_force) grp.computeForces();
     }
     return grp;
   }

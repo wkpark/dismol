@@ -29,7 +29,7 @@ import java.awt.Color;
 public class carbon extends atom
 {
   public static final String rcsid =
-  "$Id: carbon.java,v 1.7 1997/08/13 04:32:19 wware Exp $";
+  "$Id: carbon.java,v 1.1.1.1 1998/02/10 19:03:53 pcm Exp $";
   public carbon ()
   {
     double newx[] = { 0.0, 0.0, 0.0 };
