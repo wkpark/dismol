@@ -1,0 +1,78 @@
+==== 9/9/2003 ====
+wkpark@gmail.com
+ * can delete or add atom
+==== 1/30/2003 ====
+modified by wkpark@gmail.com
+ * smart spin mode like the LiveGraphics3D
+ * Depth queing for the wireframe style
+ * can POST a image as a png file (like the ChemDraw applet)
+
+==== 1/20/2003 ====
+modified by wkpark@gmail.com
+ * now can pick a information of molecular - distance,angle,torsional angle
+ * hot-keys are renamed for easy access 
+
+==== 1/15/2003 ====
+modified by wkpark@gmail.com
+ * fixed clipping bug
+ * the 'mode' parameter added to chose a rendering method
+   (ball&stick, sticks, wireframe, spacefill)
+ * specular rendering enabled
+ * the 'molstring' parameter added.
+   (a pdb file can be embedded like the JME way)
+ * a local file can be opened by the 'model' parameter
+ * the rendering speed enhanced by small modification of the DisMol.java
+
+==== version 0.12 (7/21/98): =====
+
+ Increased max atom display size from 500 to 750, enabled settingit
+ from .html via <param name=atomsize value="nnn">.
+ Changed default zoom to reflect size of drawing area.
+
+==== version 0.11 (5/20/98): =====
+
+ Incorporated Will Ware's fix to view.java rotation code.
+ Fixed bug that caused bonds to stick out far side of atom at one end.
+ Improved centering for views of molecules which aren't centered about 0,0,0.
+ Fixed axes so they are hidden by other objects in front of them.
+ Added crude Makefile. Everything compliles with -O now.
+
+==== version 0.10 (4/2/98): =====
+
+ Improved performance by eliminating many repetitive memory allocs.
+ Disabled threading.
+ Fixed bug in reading pdb files with nonstandard alignment (Chem3d?).
+
+==== version 0.09 (4/1/98): =====
+
+ Fixed parse error in PDBGroup.java.
+ Added System.gc() call, made CreateMoleculeBonds call conditional
+on number of bonds created by CONECT records to improve performance
+on Drexler's finalPump96.09.06.pdb (which still takes too long to paint).
+
+==== version 0.08 (3/31/98): =====
+
+ Replaced fillOval/drawOval calls to draw atoms with heavily optimized
+code borrowed from RasMol, and did some related performance improvements.
+ Fixed bugs in atom info report.
+
+==== version 0.07 (2/25/98): =====
+
+ Fixed another bug in reading input stream when i/o blocked.
+
+==== version 0.06 (2/25/98): =====
+
+ Fixed bug in reading input stream when i/o blocked.
+
+==== version 0.05 (2/24/98): =====
+
+ Performance improvements.
+
+==== version 0.04 (2/24/98): =====
+
+ Added code to figure out where bonds belong.
+ Added option to display axes.
+ Added control over atomic radii.
+ Changed url entry line to pulldown menu.
+ Improved some messages.
+

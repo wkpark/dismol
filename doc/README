@@ -1,0 +1,14 @@
+ DisMol is an applet intended as an easy way to display molecules that
+are on the web, and allow the user to rotate/zoom the display.
+ It was put together by Peter McCluskey from code from Will Ware's NanoCAD
+and Roger Sayle's RasMol.
+ If you're willing to do a little work installing RasMol, you can get much
+better control over how you see molecules with RasMol than with DisMol.
+
+The latest version should be available at
+http://www.rahul.net/pcm/dismol/DisMol.html. (dead link)
+
+==== TO DO ====
+
+Add options for other ways to render atoms/bonds.
+Make into GUI for DiamondCAD and/or MMTK.
