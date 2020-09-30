@@ -1094,10 +1094,10 @@ public class DisMol extends Applet
 
   public void keyPressed(KeyEvent e) { }
   public void keyReleased(KeyEvent e) { }
-  //public boolean keyDown(Event e, int keycode)
+
+  @Override
   public void keyTyped(KeyEvent e)
   {
-    //char keyChar = (char) keycode;
     char keyChar = e.getKeyChar();
     if (keyChar == 'h' || keyChar == 'H') {
        System.err.println("oops");
@@ -1333,7 +1333,7 @@ public class DisMol extends Applet
     helpMsg.setEditable(false);
 
     help.add("Center", helpMsg);
-    help.show(); 
+    help.setVisible(true);
   }
 
   public void init ()
@@ -1379,7 +1379,13 @@ public class DisMol extends Applet
 
     this.add ("South",controls);
     this.requestFocus();
+    setFocusable(true);
+    requestFocusInWindow();
     //this.repaint();
+
+    this.addKeyListener(this);
+    this.addMouseListener(this);
+    this.addMouseMotionListener(this);
   }
 
   public void start() {
@@ -1505,10 +1511,6 @@ public class DisMol extends Applet
       atomInfoBlab.setText ("Welcome to DisMol");
     }
 
-    //this.addActionListener(this);
-    this.addKeyListener(this);
-    this.addMouseListener(this);
-    this.addMouseMotionListener(this);
   }
 
   public void stop() {
@@ -1554,7 +1556,7 @@ public class DisMol extends Applet
     */
     frame.add("Center", dismol);
     frame.setSize(432, 384);
-    frame.show();
+    frame.setVisible(true);
     dismol.grp = new group();
 
     int ht = dismol.getSize().height;
@@ -1652,7 +1654,6 @@ public class DisMol extends Applet
   }
 }
 
-/*
 class closableWindow extends Frame {
   public closableWindow(String s) {
     super(s);
@@ -1660,26 +1661,10 @@ class closableWindow extends Frame {
 
   public void processEvent(AWTEvent e) {
     if (e.getID() == Event.WINDOW_DESTROY) {
-      hide();
+      setVisible(false);
     }
     super.processEvent(e);
   }
 }
-*/
-class closableWindow extends Frame {
-  public closableWindow(String s) {
-    super(s);
-  }
-
-  public boolean handleEvent(Event e) {
-    if (e.id == Event.WINDOW_DESTROY) {
-      hide();
-      return true;
-    }
-    return super.handleEvent(e);
-  }
-}
-
-
 
 // vim:et:sts=2:sw=2:
