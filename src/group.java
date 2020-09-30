@@ -30,22 +30,6 @@ import java.util.Vector;
 import java.io.*;
 import java.awt.Font;
 
-import atom;
-import PDBAtom;
-import RasBuffer;
-import Bond;
-import term;
-import view;
-import dlentry;
-import dl_atom;
-import dl_bond;
-import dlforce;
-import RasFont;
-
-import PngEncoder;
-
-import Vert;
-
 public class group
 {
   public static final String rcsid =

@@ -25,7 +25,6 @@
 
 import java.awt.*;
 import java.util.Vector;
-import atom;
 
 public class dlforce extends dlentry
 {

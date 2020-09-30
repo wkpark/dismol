@@ -31,10 +31,6 @@ import java.util.StringTokenizer;
 import java.util.Vector;
 import java.io.InputStream;
 import java.io.IOException;
-import atom;
-import PDBAtom;
-import term;
-import XYZGroup;
 
 public class xyzreader
 {

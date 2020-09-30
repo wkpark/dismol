@@ -28,10 +28,6 @@
 import java.awt.*;
 import java.lang.Math;
 import java.util.Vector;
-import PDBAtom;
-import GenericGroup;
-import MaskDesc;
-import Element;
 
 public class XYZGroup extends GenericGroup
 {

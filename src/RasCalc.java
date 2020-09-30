@@ -26,8 +26,6 @@
  * software, even if advised of the possibility of such damage.
  */
 
-import atom;
-
 class RasCalc
 {
 

@@ -28,8 +28,6 @@
 import java.awt.*;
 import java.lang.Math;
 import java.util.Vector;
-import atom;
-import Element;
 
 public class PDBAtom extends atom
 {

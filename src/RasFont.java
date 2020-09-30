@@ -27,7 +27,6 @@
  */
 
 import java.awt.*;
-import RasBuffer;
 
 public class RasFont
 {

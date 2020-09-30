@@ -30,13 +30,6 @@ import java.lang.Math;
 import java.util.Vector;
 import java.io.InputStream;
 import java.io.IOException;
-import atom;
-import PDBAtom;
-import term;
-import PDBGroup;
-//import Chain;
-import ResSynonym;
-/*import Bond;*/
 
 public class pdbreader
 {

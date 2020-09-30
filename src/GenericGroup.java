@@ -30,10 +30,6 @@ import java.lang.Math;
 import java.util.Vector;
 import java.io.InputStream;
 import java.io.IOException;
-import PDBAtom;
-import group;
-import MaskDesc;
-import Element;
 
 public class GenericGroup extends group
 {

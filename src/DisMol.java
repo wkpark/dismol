@@ -41,17 +41,6 @@ import java.awt.datatransfer.*;
 import java.awt.datatransfer.DataFlavor;
 import java.awt.image.ImageProducer;
 
-//import netscape.security.PrivilegeManager;
-
-import atom;
-import view;
-import group;
-import pdbreader;
-import xyzreader;
-import RasBuffer;
-import RasFont; // added by wkpark@kldp.org 2003
-import RasCalc; // added by wkpark@kldp.org 2003
-
 public class DisMol extends Applet
   implements KeyListener, MouseListener, MouseMotionListener, ActionListener {
   public static final String rcsid =

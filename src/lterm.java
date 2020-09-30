@@ -25,7 +25,6 @@
 
 import java.lang.Math;
 import java.util.Vector;
-import atom;
 
 public class lterm extends term
 {

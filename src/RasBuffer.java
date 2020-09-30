@@ -30,8 +30,6 @@ import java.awt.image.DirectColorModel;
 import java.awt.image.ColorModel;
 import java.awt.image.ImageProducer;
 import java.util.Vector;
-import Element;
-import Vert;
 
 class RefCountColor
 {

@@ -26,7 +26,6 @@
 
 import java.awt.*;
 import java.util.Vector;
-import atom;
 
 public class dl_atom extends dlentry
 {

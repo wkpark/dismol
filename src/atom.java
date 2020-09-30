@@ -25,7 +25,6 @@
 
 import java.awt.Color;
 import java.util.Vector;
-import Element;
 
 public abstract class atom
 {

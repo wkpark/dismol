@@ -23,7 +23,6 @@
  * software, even if advised of the possibility of such damage.
  */
 
-import atom;
 import java.awt.Color;
 
 public class carbon extends atom

@@ -26,7 +26,6 @@
  */
 
 import java.util.Vector;
-import PDBAtom;
 
 public class Bond
 {
