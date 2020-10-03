@@ -159,12 +159,17 @@ public class RasBuffer
   public static ViewStruct view;
   static short LookUp[][];
 
-  private static final double Ambient = 0.4; // Rasmol default
+  private static final double DefaultAmbient = 0.40; // Rasmol default
+  private static final boolean DefaultBackFade = false;
+  private static boolean DefaultFakeSpecular = true;
+  private static int DefaultSpecPower = 10; // jmol default - 40, rasmol default 8
+
+  private static double Ambient = DefaultAmbient;
   private static final boolean EIGHTBIT = false;
-  private static final int DefaultColDepth = (EIGHTBIT ? 16 : 32);
+  private static final int DefaultColDepth = (EIGHTBIT ? 32 : 64);
   private static int ColourDepth = DefaultColDepth;
   private static int ColourMask = ColourDepth-1;
-  private static final int LutSize = (EIGHTBIT ? 256 : 1024); // 32 * 32
+  private static final int LutSize = (EIGHTBIT ? 1024 : 4096); // 32 * 32
   private static int Lut[] = new int[LutSize];
   private static ColorModel colorModel;
   private static boolean ULut[] = new boolean[LutSize];
@@ -178,9 +183,10 @@ public class RasBuffer
   private static int BackR,BackG,BackB;
   private static int LabR,LabG,LabB;
   private static int BoxR,BoxG,BoxB;
-  private static boolean UseBackFade = false;
-  private static boolean FakeSpecular = true;
-  private static int SpecPower = 8;
+  private static boolean UseBackFade = DefaultBackFade;
+  private static boolean FakeSpecular = DefaultFakeSpecular;
+  private static int SpecPower = DefaultSpecPower;
+  private static double SpecularFactor = 0.80;
 
   public static long t1 = System.currentTimeMillis();
 
@@ -207,7 +213,7 @@ public class RasBuffer
   private static final int MAXRAD = 255;
   private static int ColConst[] = new int[MAXRAD];
 
-  private static final int MAXSHADE = 32;
+  private static final int MAXSHADE = DefaultColDepth;
   //private static final int MAXSHADE = 64;
   /*  private static ShadeRef ScaleRef[] = new ShadeRef[MAXSHADE]; */
   private static RefCountColor Shade[] = null;
@@ -473,13 +479,11 @@ public class RasBuffer
     for( i=0; i<256; i++ )
         ULut[i] = false;
     }
-
-    SpecPower = 8;
-    FakeSpecular = false;
-    Ambient = DefaultAmbient;
     */
-    UseBackFade = false;
-    FakeSpecular = true;
+    Ambient = DefaultAmbient;
+    SpecPower = DefaultSpecPower;
+    UseBackFade = DefaultBackFade;
+    FakeSpecular = DefaultFakeSpecular;
 
     BackR = BackG = BackB = 0;
     BoxR = BoxG = BoxB = 255;
@@ -613,7 +617,7 @@ public class RasBuffer
 
 	    /* */
             if( FakeSpecular )
-            {   temp = Power(temp,SpecPower);
+            {   temp = Power(temp,SpecPower) * SpecularFactor;
                 k = (int)(255*temp);
                 temp = 1.0 - temp;
                 inten *= temp;
@@ -693,6 +697,10 @@ public class RasBuffer
     int   stdcol = Lut[col];
     int   cc = ColConst[rad];
     int   r = 0;
+    double lightfactor;
+
+    lightfactor = (double)(rad)*RootSix;
+
     if (wide == 0) return; /* */
     while(wide == 1 && (long)(512+wide-dy)*(long)cc > (long)Integer.MAX_VALUE)
     { // prevent overflow in low radius inten calc.
@@ -707,14 +715,14 @@ public class RasBuffer
       if(offset >=0 && offset < view.size && depth > view.dbuf[offset])
       {
  	view.dbuf[offset] = depth;
-	int inten = dz+dz+dx-dy;
+	double inten = dz+dz+dx-dy;
 	if( inten>0 )
 	{
-	  //inten = (inten*cc) >> ColBits;
 	  inten = (int)((long)inten*cc >> ColBits);
+          if( inten>ColourMask ) inten = ColourMask;
 	  try
 	  {
-	    view.fbuf[offset] = Lut[col+inten];
+	    view.fbuf[offset] = Lut[col+(int)inten];
 	  }catch(ArrayIndexOutOfBoundsException e)
 	  {
 	    System.err.println("#1ArrayIndexOutOfBoundsException " + inten + " " + (dz+dz+dx-dy) + "*" + cc + " r " + r);
@@ -742,14 +750,14 @@ public class RasBuffer
 	if(offset >=0 && offset < view.size && depth > view.dbuf[offset])
 	{
 	  view.dbuf[offset] = depth;
-	  int inten = dz+dz+dx-dy;
+	  double inten = dz+dz+dx-dy;
 	  if( inten>0 )
 	  {
 	    inten = (int)((long)inten*cc >> ColBits);
-	    //inten = (inten*cc) >> ColBits;
+	    if( inten>ColourMask ) inten = ColourMask;
 //	    try
 //	    {
-	      view.fbuf[offset] = Lut[col+inten];
+	      view.fbuf[offset] = Lut[col+(int)inten];
 //	    }catch(ArrayIndexOutOfBoundsException e)
 //	    {
 //	      System.err.println("#2ArrayIndexOutOfBoundsException " + inten + " " + (dz+dz+dx-dy) + "*" + cc + " r " + r);
@@ -912,10 +920,10 @@ public class RasBuffer
       for( dx= -wide; dx<=wide; dx++ )
       {
 	  dz = lptr[Math.abs(dx)];
-	  int inten = dz + dz + dx + dy;
+	  double inten = dz + dz + dx - dy;
 	  if( inten>0 )
           {
-	    inten = (int)((inten*ColConst[rad])>>ColBits);
+	    inten = (int)(((long)inten*ColConst[rad])>>ColBits);
 	    if( inten>ColourMask ) inten = ColourMask;
 	  }else inten = 0;
 	  offset = temp+dx;
@@ -926,7 +934,7 @@ public class RasBuffer
 	    if(depth > view.dbuf[dold + offset])
 	    {
 	      view.dbuf[dold + offset] = depth;
-	      view.fbuf[fold+offset] = Lut[c1+inten];
+	      view.fbuf[fold+offset] = Lut[c1+(int)inten];
 	    }
 	  }
 
@@ -935,7 +943,7 @@ public class RasBuffer
 	    short depth = (short)(dz+z2);
             if( depth > view.dbuf[dold+(offset+end)]) 
             {   view.dbuf[dold+(offset+end)] = (short)(depth);
-	       view.fbuf[fold+(offset+end)] = Lut[c2+inten];
+	       view.fbuf[fold+(offset+end)] = Lut[c2+(int)inten];
             }
 	  }
 
@@ -964,13 +972,15 @@ private static void DrawCylinderCaps( int x1, int y1, int z1,
                               int c1, int c2, int rad )
 {
     int offset;
-    int inten1,inten2,s1,s2,absx;
+    int s1,s2,absx;
     int wide;
     int dx,dy,dz;
     int lx = x2-x1;
     int ly = y2-y1;
     boolean p;
+    double inten1, inten2;
     //int alts, altc;
+    double lightfactor = (double)(rad)*RootSix;
 
     int end = ly*view.yskip+lx;
     int temp = y1*view.yskip+x1;
@@ -989,10 +999,9 @@ private static void DrawCylinderCaps( int x1, int y1, int z1,
 	    short depth;
 	    absx = Math.abs(dx);
             dz = LookUp[wide][absx];
-	    int inten = dz + dz + dx + dy;
+	    double inten = dz + dz + dx - dy;
             if( inten>0 )
-            {   inten = (int)((inten*ColConst[rad])>>ColBits);
-                // inten = (int)(ColourMask*inten + 0.1);
+            {   inten = (int)(((long)inten*ColConst[rad])>>ColBits);
                 if( inten>ColourMask ) inten = ColourMask;
             } else inten = 0;
 
@@ -1016,7 +1025,7 @@ private static void DrawCylinderCaps( int x1, int y1, int z1,
 	    if(XValid(x1+dx) && YValid(y1+dy))
             if( depth > view.dbuf[dold+offset]) 
             {  view.dbuf[dold+offset] = (short)(depth);
-               view.fbuf[fold+offset] = Lut[c1+inten1];
+               view.fbuf[fold+offset] = Lut[c1+(int)inten1];
             }
 
             //dptr = dold+(offset+end);
@@ -1027,7 +1036,7 @@ private static void DrawCylinderCaps( int x1, int y1, int z1,
 	    if(XValid(x2+dx) && YValid(y2+dy))
             if( depth > view.dbuf[dold+(offset+end)]) 
             {   view.dbuf[dold+(offset+end)] = (short)(depth);
-               view.fbuf[fold+(offset+end)] = Lut[c2+inten2];
+               view.fbuf[fold+(offset+end)] = Lut[c2+(int)inten2];
             }
         }
         temp += view.yskip;
@@ -1165,7 +1174,7 @@ public static void DrawCylinder( int x1, int y1, int z1,
         else rz2 = (int)((rz-0.5));
 
         //LineInten;
-        inten = (rx)+(ry)+(rz)+(rz);
+        inten = (rx)-(ry)+(rz)+(rz);
         //inten /= lightfactor;
         if( inten > 0.0 )
         {
@@ -1396,7 +1405,7 @@ public static void DrawCylinderOnAxe( int x1, int y1, int z1,
             az = z1 + rz2; bz = az + lz;
 
             //LineInten;
-            inten = (rx)+(ry)+(rz)+(rz);
+            inten = (rx)-(ry)+(rz)+(rz);
             inten /= lightfactor;
             if( inten > 0.0 )
             //{   inten = (int)((inten*ColConst[rad])>>ColBits);
@@ -1501,7 +1510,7 @@ public static void DrawCylinderOnAxe( int x1, int y1, int z1,
             az = z1 + rz2; bz = az + lz;
 	    
             //LineInten;
-            inten = (rx)+(ry)+(rz)+(rz);
+            inten = (rx)-(ry)+(rz)+(rz);
             inten /= lightfactor;
             if( inten > 0.0 )
             //{   inten = (int)((inten*ColConst[rad])>>ColBits);
